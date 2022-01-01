@@ -662,11 +662,11 @@ function update_battle() {
 
 function update_card_display(element, card, prior_card) {
 	if (!card && !prior_card) {
-		element.className = "small_card card_back";
+		element.className = "show card card_back";
 	} else if (prior_card) {
-		element.className = "small_card prior card_" + CARDS[prior_card].image;
+		element.className = "show card prior card_" + CARDS[prior_card].image;
 	} else {
-		element.className = "small_card card_" + CARDS[card].image;
+		element.className = "show card card_" + CARDS[card].image;
 	}
 }
 

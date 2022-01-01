@@ -39,31 +39,40 @@ header.your_turn { background-color: orange; }
 	width: 225px;
 	height: 350px;
 	border-radius: 12px;
+	box-shadow: 1px 1px 5px rgba(0,0,0,0.5);
+	transition: 100ms;
+	display: none;
+}
+
+.card.show {
+	display: block;
 }
 
 .card.enabled:hover {
 	transform: scale(1.1);
 }
 
-.small_card.prior {
+.card.prior {
 	filter: grayscale(100%);
 }
 
-.card, .small_card { background-color: white; }
-.card_back { background-color: #822c1f; }
+.card_back {
+	background-color: #822c1f;
+}
 
 .role_info { padding: 15px; }
-.small_card { width: 90px; height: 140px; border-radius: 5px; }
-.small_card:hover { width: 180px; height: 280px; border-radius: 10px; }
+.role_info .card { margin: 0 auto; }
+.role_info .card { width: 90px; height: 140px; border-radius: 5px; }
+.role_info .card:hover { width: 180px; height: 280px; border-radius: 10px; }
 
 @media (max-height: 800px) {
 	.role_info { padding: 15px 0 0 0; }
-	.small_card { width: 135px; height: 80px; border-radius: 8px 8px 0 0; }
-	.small_card:hover { width: 180px; height: 280px; border-radius: 10px; margin-bottom: 15px; }
+	.role_info .card { width: 135px; height: 80px; border-radius: 8px 8px 0 0; }
+	.role_info .card:hover { width: 180px; height: 280px; border-radius: 10px; margin-bottom: 15px; }
 }
 
 @media (min-height: 1200px) {
-	.small_card { width: 180px; height: 280px; border-radius: 10px; }
+	.role_info .card { width: 180px; height: 280px; border-radius: 10px; }
 }
 
 /* BATTLE BOARD */
