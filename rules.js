@@ -124,7 +124,7 @@ function clear_undo() {
 
 function push_undo() {
 	game.undo.push(JSON.stringify(game, (k,v) => {
-		if (k === 'undo') return undefined;
+		if (k === 'undo') return 0;
 		if (k === 'log') return v.length;
 		return v;
 	}));
@@ -133,7 +133,7 @@ function push_undo() {
 function pop_undo() {
 	let undo = game.undo;
 	let save_log = game.log;
-	Object.assign(game, JSON.parse(undo.pop()));
+	game = JSON.parse(undo.pop());
 	game.undo = undo;
 	save_log.length = game.log;
 	game.log = save_log;
@@ -258,13 +258,14 @@ function eliminate_block(who) {
 		log(block_name(who), " is eliminated.");
 		game.location[who] = DEAD;
 		game.steps[who] = BLOCKS[who].steps;
+		delete game.owner[who];
 	}
 }
 
 function disband_block(who) {
-	game.owner[who] = BLOCKS[who].owner;
 	game.location[who] = LEVY;
 	game.steps[who] = BLOCKS[who].steps;
+	delete game.owner[who];
 }
 
 function reduce_block(who) {
@@ -2383,7 +2384,7 @@ exports.ready = function (scenario, options, players) {
 exports.setup = function (seed, scenario, options) {
 	game = {
 		seed: seed,
-		tournament: options.tournament ? 1 : 0,
+		tournament: options && options.tournament ? 1 : 0,
 		c_hand: [],
 		p_hand: [],
 		c_card: 0,
@@ -2468,7 +2469,7 @@ exports.action = function (state, current, action, arg) {
 		S[action](arg, current);
 	else
 		throw new Error("Invalid action: " + action);
-	return state;
+	return game;
 }
 
 exports.resign = function (state, current) {
@@ -2482,7 +2483,7 @@ exports.resign = function (state, current) {
 		game.result = enemy(current);
 		game.victory = current + " resigned."
 	}
-	return state;
+	return game;
 }
 
 function make_battle_view() {
@@ -2507,7 +2508,7 @@ function make_battle_view() {
 	function fill_cell(name, p, fn) {
 		for (let b in BLOCKS) {
 			if (game.location[b] === game.where & block_owner(b) === p && fn(b)) {
-				bv[name].push([b, game.steps[b], game.moved[b]?1:0])
+				bv[name].push(b);
 			}
 		}
 	}
@@ -2533,6 +2534,8 @@ function observer_hand() {
 	return hand;
 }
 
+exports.is_checkpoint = (a, b) => a.turn !== b.turn;
+
 exports.view = function(state, current) {
 	game = state;
 
@@ -2542,17 +2545,18 @@ exports.view = function(state, current) {
 		log: game.log,
 		year: game.year,
 		turn: game.turn,
+		active: game.active,
 		c_vp: game.c_vp,
 		p_vp: game.p_vp,
 		c_card: (game.show_cards || current === CAESAR) ? game.c_card : 0,
 		p_card: (game.show_cards || current === POMPEIUS) ? game.p_card : 0,
 		hand: (current === CAESAR) ? game.c_hand : (current === POMPEIUS) ? game.p_hand : observer_hand(),
 		who: (game.active === current) ? game.who : null,
-		where: game.where,
-		known: {},
-		secret: { Caesar: {}, Pompeius: {}, Cleopatra: {} },
+		location: game.location,
+		owner: game.owner,
+		steps: game.steps,
+		moved: game.moved,
 		battle: null,
-		active: game.active,
 		prompt: null,
 		actions: null,
 	};
@@ -2569,27 +2573,6 @@ exports.view = function(state, current) {
 	if (game.neptune && game.surprise) {
 		view.neptune = game.p1;
 		view.surprise = game.surprise;
-	}
-
-	for (let b in BLOCKS) {
-		let jupiter = (BLOCKS[b].owner !== block_owner(b)) ? 1 : 0;
-		if (game.state === 'game_over') {
-			if (game.location[b] !== LEVY)
-				view.known[b] = [ game.location[b], game.steps[b], 0, jupiter ];
-		} else if (block_owner(b) === current || game.location[b] === DEAD) {
-			view.known[b] = [ game.location[b], game.steps[b], game.moved[b]?1:0, jupiter ];
-		} else {
-			let a = game.location[b];
-			let o = BLOCKS[b].owner;
-			if (b === CLEOPATRA)
-				o = CLEOPATRA;
-			if (a !== LEVY) {
-				let list = view.secret[o];
-				if (!(a in list))
-					list[a] = [];
-				list[a].push([game.moved[b]?1:0, jupiter]);
-			}
-		}
 	}
 
 	return view;

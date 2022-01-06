@@ -57,22 +57,15 @@ const step_up_animation = [
 ];
 
 let ui = {
-	spaces: {},
-	known: {},
-	secret: {
-		Caesar: { offmap: [] },
-		Pompeius: { offmap: [] },
-		Cleopatra: { offmap: [] },
-	},
-	seen: new Set(),
-	present: new Set(),
-	battle_block: {},
-	battle_menu: {},
-	map_steps: {},
-	map_location: {},
-	battle_steps: {},
 	cards: {},
 	card_backs: {},
+	spaces: {},
+	blocks: {},
+	battle_menu: {},
+	battle_block: {},
+	old_steps: null,
+	old_location: null,
+	present: new Set(),
 };
 
 create_log_entry = function (text) {
@@ -104,21 +97,6 @@ create_log_entry = function (text) {
 	return p;
 }
 
-const STEPS = [ 0, "I", "II", "III", "IIII" ];
-
-function block_description(b) {
-	let s = ui.map_steps[b] || ui.battle_steps[b];
-	let c = BLOCKS[b].initiative + BLOCKS[b].firepower;
-	let levy = BLOCKS[b].levy;
-	if (levy)
-		return BLOCKS[b].name + " (" + levy + ") " + STEPS[s] + "-" + c;
-	return BLOCKS[b].name + " " + STEPS[s] + "-" + c;
-}
-
-function block_name(b) {
-	return BLOCKS[b].name;
-}
-
 function on_focus_space(evt) {
 	document.getElementById("status").textContent = evt.target.space;
 }
@@ -127,11 +105,39 @@ function on_blur_space(evt) {
 	document.getElementById("status").textContent = "";
 }
 
-function on_focus_block(evt) {
+function on_click_space(evt) {
+	send_action('space', evt.target.space);
+}
+
+const STEPS = [ 0, "I", "II", "III", "IIII" ];
+
+function block_description(b) {
+	if (is_known_block(b)) {
+		let s = BLOCKS[b].steps;
+		let c = BLOCKS[b].initiative + BLOCKS[b].firepower;
+		let levy = BLOCKS[b].levy;
+		if (levy)
+			return BLOCKS[b].name + " (" + levy + ") " + STEPS[s] + "-" + c;
+		return BLOCKS[b].name + " " + STEPS[s] + "-" + c;
+	}
+	return block_owner(b);
+}
+
+function block_owner(who) {
+	if (who in view.owner)
+		return view.owner[who];
+	return BLOCKS[who].owner;
+}
+
+function block_name(b) {
+	return BLOCKS[b].name;
+}
+
+function on_focus_map_block(evt) {
 	document.getElementById("status").textContent = block_description(evt.target.block);
 }
 
-function on_blur_block(evt) {
+function on_blur_map_block(evt) {
 	document.getElementById("status").textContent = "";
 }
 
@@ -141,11 +147,11 @@ function on_focus_battle_block(evt) {
 	if (!evt.target.classList.contains("known"))
 		document.getElementById("status").textContent = "Reserves";
 
-	if (game.actions && game.actions.battle_fire && game.actions.battle_fire.includes(b))
+	if (view.actions && view.actions.battle_fire && view.actions.battle_fire.includes(b))
 		msg = "Fire with " + msg;
-	else if (game.actions && game.actions.battle_retreat && game.actions.battle_retreat.includes(b))
+	else if (view.actions && view.actions.battle_retreat && view.actions.battle_retreat.includes(b))
 		msg = "Retreat with " + msg;
-	else if (game.actions && game.actions.battle_hit && game.actions.battle_hit.includes(b))
+	else if (view.actions && view.actions.battle_hit && view.actions.battle_hit.includes(b))
 		msg = "Take hit on " + msg;
 
 	document.getElementById("status").textContent = msg;
@@ -159,26 +165,53 @@ function on_focus_battle_fire(evt) {
 	document.getElementById("status").textContent =
 		"Fire with " + block_name(evt.target.block);
 }
+
 function on_focus_battle_retreat(evt) {
 	document.getElementById("status").textContent =
 		"Retreat with " + block_name(evt.target.block);
 }
+
 function on_focus_battle_pass(evt) {
 	document.getElementById("status").textContent =
 		"Pass with " + block_name(evt.target.block);
 }
+
 function on_focus_battle_hit(evt) {
 	document.getElementById("status").textContent =
 		"Take hit on " + block_name(evt.target.block);
 }
+
 function on_blur_battle_button(evt) {
 	document.getElementById("status").textContent = "";
+}
+
+function on_click_battle_block(evt) { send_action('block', evt.target.block); }
+function on_click_battle_hit(evt) { send_action('battle_hit', evt.target.block); }
+function on_click_battle_fire(evt) { send_action('battle_fire', evt.target.block); }
+function on_click_battle_retreat(evt) { send_action('battle_retreat', evt.target.block); }
+
+function on_click_battle_pass(evt) {
+	if (window.confirm("Are you sure that you want to PASS with " + block_name(evt.target.block) + "?"))
+		send_action('battle_pass', evt.target.block);
+}
+
+function on_click_map_block(evt) {
+	let b = evt.target.block;
+	let s = view.location[b];
+	if (view.actions && view.actions.secret && view.actions.secret.includes(s))
+		send_action('secret', [s, BLOCKS[b].color]);
+	else if (!view.battle)
+		send_action('block', b);
 }
 
 function build_map() {
 	// These must match up with the sizes in play.html
 	const city_size = 60+10;
 	const sea_size = 70+10;
+
+	ui.blocks_element = document.getElementById("blocks");
+	ui.offmap_element = document.getElementById("offmap");
+	ui.spaces_element = document.getElementById("spaces");
 
 	for (let s in SPACES) {
 		let space = SPACES[s];
@@ -192,45 +225,26 @@ function build_map() {
 		element.setAttribute("draggable", "false");
 		element.addEventListener("mouseenter", on_focus_space);
 		element.addEventListener("mouseleave", on_blur_space);
-		element.addEventListener("click", select_space);
+		element.addEventListener("click", on_click_space);
 		element.style.left = (space.x - size/2) + "px";
 		element.style.top = (space.y - size/2) + "px";
 		if (space.type !== 'pool')
 			document.getElementById("spaces").appendChild(element);
 		element.space = s;
 		ui.spaces[s] = element;
-
-		ui.secret[CLEOPATRA][s] = [];
-		ui.secret[CAESAR][s] = [];
-		ui.secret[POMPEIUS][s] = [];
 	}
 
-	function build_known_block(b, block, color) {
+	function build_map_block(b, block) {
 		let element = document.createElement("div");
 		element.classList.add("block");
 		element.classList.add("known");
-		element.classList.add(color);
+		element.classList.add(block.color);
 		element.classList.add("block_"+block.label);
-		element.addEventListener("mouseenter", on_focus_block);
-		element.addEventListener("mouseleave", on_blur_block);
+		element.addEventListener("mouseenter", on_focus_map_block);
+		element.addEventListener("mouseleave", on_blur_map_block);
 		element.addEventListener("click", on_click_map_block);
-		document.getElementById("blocks").appendChild(element);
-		element.style.visibility = 'hidden';
 		element.block = b;
-		ui.known[b] = element;
-	}
-
-	function build_secret_block(b, block, color) {
-		let element = document.createElement("div");
-		element.secret_index = ui.secret[color].offmap.length;
-		element.classList.add("block");
-		element.classList.add("secret");
-		element.classList.add(color);
-		element.addEventListener("click", select_secret_block);
-		document.getElementById("blocks").appendChild(element);
-		element.style.visibility = 'hidden';
-		element.owner = BLOCKS[b].owner;
-		ui.secret[color].offmap.unshift(element);
+		ui.blocks[b] = element;
 	}
 
 	function build_battle_button(menu, b, c, click, enter, img_src) {
@@ -246,11 +260,10 @@ function build_map() {
 		menu.appendChild(img);
 	}
 
-	function build_battle_block(b, block, color) {
+	function build_battle_block(b, block) {
 		let element = document.createElement("div");
 		element.classList.add("block");
-		element.classList.add("known");
-		element.classList.add(color);
+		element.classList.add(block.color);
 		element.classList.add("block_"+block.label);
 		element.addEventListener("mouseenter", on_focus_battle_block);
 		element.addEventListener("mouseleave", on_blur_battle_block);
@@ -262,16 +275,16 @@ function build_map() {
 		action_list.classList.add("battle_menu_list");
 		action_list.appendChild(element);
 		build_battle_button(action_list, b, "hit",
-			select_battle_hit, on_focus_battle_hit,
+			on_click_battle_hit, on_focus_battle_hit,
 			"/images/cross-mark.svg");
 		build_battle_button(action_list, b, "fire",
-			select_battle_fire, on_focus_battle_fire,
+			on_click_battle_fire, on_focus_battle_fire,
 			"/images/pointy-sword.svg");
 		build_battle_button(action_list, b, "retreat",
-			select_battle_retreat, on_focus_battle_retreat,
+			on_click_battle_retreat, on_focus_battle_retreat,
 			"/images/flying-flag.svg");
 		build_battle_button(action_list, b, "pass",
-			select_battle_pass, on_focus_battle_pass,
+			on_click_battle_pass, on_focus_battle_pass,
 			"/images/sands-of-time.svg");
 
 		let menu = document.createElement("div");
@@ -283,10 +296,9 @@ function build_map() {
 
 	for (let b in BLOCKS) {
 		let block = BLOCKS[b];
-		let color = (block.name === "Cleopatra" ? "Cleopatra" : block.owner);
-		build_known_block(b, block, color);
-		build_secret_block(b, block, color);
-		build_battle_block(b, block, color);
+		block.color = (block.name === "Cleopatra" ? "Cleopatra" : block.owner);
+		build_map_block(b, block);
+		build_battle_block(b, block);
 	}
 
 	for (let c = 1; c <= 27; ++c)
@@ -295,9 +307,11 @@ function build_map() {
 		ui.card_backs[c] = document.getElementById("back+" + c);
 }
 
-function update_steps(memo, block, steps, element, animate) {
-	let old_steps = memo[block] || steps;
-	memo[block] = steps;
+function update_steps(block, element, animate) {
+	let old_steps = ui.old_steps[block] || view.steps[block];
+	let steps = view.steps[block];
+	if (view.location[block] !== ui.old_location[block])
+		animate = false;
 
 	if (label_style === 'simple' && steps !== old_steps && animate) {
 		let options = { duration: 700, easing: 'ease', iterations: Math.abs(steps-old_steps) }
@@ -314,17 +328,17 @@ function update_steps(memo, block, steps, element, animate) {
 	element.classList.add("r"+(BLOCKS[block].steps - steps));
 }
 
-function layout_blocks(location, secret, known) {
+function layout_blocks(location, north, south) {
 	if (label_layout === 'spread' || (location === LEVY || location === DEAD))
-		layout_blocks_spread(location, secret, known);
+		layout_blocks_spread(location, north, south);
 	else
-		layout_blocks_stacked(location, secret, known);
+		layout_blocks_stacked(location, north, south);
 }
 
-function layout_blocks_spread(location, secret, known) {
+function layout_blocks_spread(location, north, south) {
 	let wrap = SPACES[location].wrap;
-	let s = secret.length;
-	let k = known.length;
+	let s = north.length;
+	let k = south.length;
 	let n = s + k;
 	let row, rows = [];
 	let i = 0;
@@ -336,21 +350,21 @@ function layout_blocks_spread(location, secret, known) {
 
 	new_line();
 
-	while (secret.length > 0) {
+	while (north.length > 0) {
 		if (i === wrap)
 			new_line();
-		row.push(secret.shift());
+		row.push(north.shift());
 		++i;
 	}
 
-	// Break early if secret and known fit in exactly two rows and more than two blocks.
+	// Break early if north and south fit in exactly two rows and more than two blocks.
 	if (s > 0 && s <= wrap && k > 0 && k <= wrap && n > 2)
 		new_line();
 
-	while (known.length > 0) {
+	while (south.length > 0) {
 		if (i === wrap)
 			new_line();
-		row.push(known.shift());
+		row.push(south.shift());
 		++i;
 	}
 
@@ -391,152 +405,99 @@ function position_block_spread(location, row, n_rows, col, n_cols, element) {
 function layout_blocks_stacked(location, secret, known) {
 	let s = secret.length;
 	let k = known.length;
-	let n = s + k;
+	let both = secret.length > 0 && known.length > 0;
 	let i = 0;
 	while (secret.length > 0)
-		position_block_stacked(location, i++, n, secret.shift());
+		position_block_stacked(location, i++, (s-1)/2, both ? 1 : 0, secret.shift());
+	i = 0;
 	while (known.length > 0)
-		position_block_stacked(location, i++, n, known.shift());
+		position_block_stacked(location, i++, (k-1)/2, 0, known.shift());
 }
 
-function position_block_stacked(location, i, n, element) {
+function position_block_stacked(location, i, c, k, element) {
 	let space = SPACES[location];
 	let block_size = (label_style === 'columbia') ? 56+6 : 48+4;
-	let x = space.x - block_size/2 - (n-1) * 9 + i * 18;
-	let y = space.y - block_size/2 - (n-1) * 9 + i * 18;
-	element.style.left = x+"px";
-	element.style.top = y+"px";
+	let x = space.x + (i - c) * 16 + k * 12;
+	let y = space.y + (i - c) * 16 - k * 12;
+	element.style.left = ((x - block_size/2)|0)+"px";
+	element.style.top = ((y - block_size/2)|0)+"px";
 }
 
-function sort_secret(a,b) {
-	return a.secret_index - b.secret_index;
+function show_block(element) {
+	if (element.parentElement !== ui.blocks_element)
+		ui.blocks_element.appendChild(element);
+}
+
+function hide_block(element) {
+	if (element.parentElement !== ui.offmap_element)
+		ui.offmap_element.appendChild(element);
+}
+
+function is_known_block(who) {
+	if (view.game_over)
+		return true;
+	if (block_owner(who) === player)
+		return true;
+	let where = view.location[who];
+	if (where === DEAD)
+		return true;
+	return false;
+}
+
+function is_visible_block(where, who) {
+	if (view.game_over)
+		return true;
+	if (where === "Levy")
+		return block_owner(who) === player;
+	return true;
 }
 
 function update_map() {
-	let overflow = { Caesar: [], Pompeius: [], Cleopatra: [] };
 	let layout = {};
 
 	for (let s in SPACES)
-		layout[s] = { Caesar: [], Pompeius: [] };
+		layout[s] = { north: [], south: [] };
 
-	// Move secret blocks to overflow queue if there are too many in a location
-	for (let s in SPACES) {
-		for (let color of [CAESAR, POMPEIUS, CLEOPATRA]) {
-			let max = 0;
-			if (game.secret[color] && game.secret[color][s])
-				max = game.secret[color][s].length;
-			while (ui.secret[color][s].length > max)
-				overflow[color].push(ui.secret[color][s].pop());
-		}
-	}
-
-	// Add secret blocks if there are too few in a location
-	for (let s in SPACES) {
-		for (let color of [CAESAR, POMPEIUS, CLEOPATRA]) {
-			let max = 0;
-			if (game.secret[color] && game.secret[color][s])
-				max = game.secret[color][s].length;
-			while (ui.secret[color][s].length < max) {
-				if (overflow[color].length > 0) {
-					ui.secret[color][s].push(overflow[color].pop());
-				} else {
-					let element = ui.secret[color].offmap.pop();
-					element.style.visibility = 'visible';
-					ui.secret[color][s].push(element);
-				}
+	for (let b in view.location) {
+		let info = BLOCKS[b];
+		let element = ui.blocks[b];
+		let space = view.location[b];
+		if (is_visible_block(space, b)) {
+			let moved = view.moved[b] ? " moved" : "";
+			if (space === DEAD && info.type !== 'leader')
+				moved = " moved";
+			if (is_known_block(b)) {
+				let image = " block_" + info.label;
+				let known = " known";
+				let jupiter = "";
+				if (block_owner(b) !== BLOCKS[b].owner && view.game_over)
+					jupiter = " jupiter";
+				element.classList = info.color + known + " block" + image + moved + jupiter;
+				update_steps(b, element, true);
+			} else {
+				let jupiter = "";
+				let mars = "";
+				let neptune = "";
+				if (block_owner(b) !== BLOCKS[b].owner)
+					jupiter = " jupiter";
+				if (block_owner(b) === view.mars && space === view.surprise)
+					mars = " mars";
+				if (block_owner(b) === view.neptune && space === view.surprise)
+					neptune = " neptune";
+				element.classList = info.color + " block" + moved + jupiter + mars + neptune;
 			}
+			if (block_owner(b) === CAESAR)
+				layout[space].north.push(element);
+			else
+				layout[space].south.push(element);
+			show_block(element);
+		} else {
+			hide_block(element);
 		}
 	}
 
-	// Remove any blocks left in the overflow queue
-	for (let color of [CAESAR, POMPEIUS, CLEOPATRA]) {
-		while (overflow[color].length > 0) {
-			let element = overflow[color].pop();
-			element.style.visibility = 'hidden';
-			// Prevent move animation when blocks are revived.
-			element.style.left = null;
-			element.style.top = null;
-			ui.secret[color].offmap.push(element);
-		}
-	}
-
-	// Hide formerly known blocks
-	for (let b in BLOCKS) {
-		if (!(b in game.known)) {
-			ui.known[b].style.visibility = 'hidden';
-			// Prevent move animation when blocks are revived.
-			ui.known[b].style.left = null;
-			ui.known[b].style.top = null;
-		}
-	}
-
-	// Add secret blocks to layout
-	for (let color in game.secret) {
-		for (let location in game.secret[color]) {
-			let i = 0;
-			for (let [moved, jupiter] of game.secret[color][location]) {
-				let element = ui.secret[color][location][i++];
-				if (moved)
-					element.classList.add('moved');
-				else
-					element.classList.remove('moved');
-				if (jupiter)
-					element.classList.add('jupiter');
-				else
-					element.classList.remove('jupiter');
-				if (color === game.mars && location === game.surprise)
-					element.classList.add("mars");
-				else
-					element.classList.remove("mars");
-				if (color === game.neptune && location === game.surprise)
-					element.classList.add("neptune");
-				else
-					element.classList.remove("neptune");
-				let owner = color;
-				if (owner === CLEOPATRA)
-					owner = POMPEIUS;
-				if (jupiter)
-					owner = ENEMY[owner];
-				layout[location][owner].push(element);
-				element.style.visibility = 'visible';
-			}
-		}
-	}
-
-	// Add known blocks to layout
-	for (let block in game.known) {
-		let element = ui.known[block];
-		let location = game.known[block][0];
-		let steps = game.known[block][1];
-		let moved = game.known[block][2];
-		let jupiter = game.known[block][3];
-		let color = BLOCKS[block].owner;
-		if (jupiter)
-			color = ENEMY[color];
-
-		element.style.visibility = 'visible';
-
-		layout[location][color].push(element);
-
-		let old_location = ui.map_location[block];
-		update_steps(ui.map_steps, block, steps, element, location === old_location);
-		ui.map_location[block] = location;
-
-		if (moved || (location === DEAD && BLOCKS[block].type !== 'leader'))
-			element.classList.add("moved");
-		else
-			element.classList.remove("moved");
-		if (jupiter)
-			element.classList.add("jupiter");
-		else
-			element.classList.remove("jupiter");
-
-		ui.seen.add(block);
-	}
-
-	// Layout blocks on map
-	for (let location in SPACES)
-		layout_blocks(location, layout[location].Caesar, layout[location].Pompeius);
+	for (let space in SPACES)
+		layout_blocks(space, layout[space].north, layout[space].south);
 
 	// Mark selections and highlights
 
@@ -546,34 +507,26 @@ function update_map() {
 			ui.spaces[where].classList.remove('where');
 		}
 	}
-	if (game.actions && game.actions.space)
-		for (let where of game.actions.space)
+	if (view.actions && view.actions.space)
+		for (let where of view.actions.space)
 			ui.spaces[where].classList.add('highlight');
-	if (game.where)
-		ui.spaces[game.where].classList.add('where');
 
 	for (let b in BLOCKS) {
-		ui.known[b].classList.remove('highlight');
-		ui.known[b].classList.remove('selected');
+		ui.blocks[b].classList.remove('highlight');
+		ui.blocks[b].classList.remove('selected');
 	}
-	if (!game.battle) {
-		if (game.actions && game.actions.block)
-			for (let b of game.actions.block)
-				ui.known[b].classList.add('highlight');
-		if (game.who)
-			ui.known[game.who].classList.add('selected');
+	if (!view.battle) {
+		if (view.actions && view.actions.block)
+			for (let b of view.actions.block)
+				ui.blocks[b].classList.add('highlight');
+		if (view.who)
+			ui.blocks[view.who].classList.add('selected');
 	}
 
-	for (let o in ui.secret) {
-		for (let s in ui.secret[o]) {
-			if (game.actions && game.actions.secret && game.actions.secret.includes(s)) {
-				for (let e of ui.secret[o][s])
-					e.classList.add("highlight");
-			} else {
-				for (let e of ui.secret[o][s])
-					e.classList.remove("highlight");
-			}
-		}
+	for (let b in BLOCKS) {
+		let s = view.location[b];
+		if (view.actions && view.actions.secret && view.actions.secret.includes(s))
+			ui.blocks[b].classList.add('highlight');
 	}
 }
 
@@ -583,11 +536,10 @@ function update_battle() {
 
 		ui.present.clear();
 
-		for (let [block, steps, moved] of list) {
-			ui.seen.add(block);
+		for (let block of list) {
 			ui.present.add(block);
 
-			if (block === game.who)
+			if (block === view.who)
 				ui.battle_menu[block].classList.add("selected");
 			else
 				ui.battle_menu[block].classList.remove("selected");
@@ -598,23 +550,23 @@ function update_battle() {
 			ui.battle_menu[block].classList.remove('retreat');
 			ui.battle_menu[block].classList.remove('pass');
 
-			if (game.actions && game.actions.block && game.actions.block.includes(block))
+			if (view.actions && view.actions.block && view.actions.block.includes(block))
 				ui.battle_block[block].classList.add("highlight");
-			if (game.actions && game.actions.battle_fire && game.actions.battle_fire.includes(block))
+			if (view.actions && view.actions.battle_fire && view.actions.battle_fire.includes(block))
 				ui.battle_menu[block].classList.add('fire');
-			if (game.actions && game.actions.battle_retreat && game.actions.battle_retreat.includes(block))
+			if (view.actions && view.actions.battle_retreat && view.actions.battle_retreat.includes(block))
 				ui.battle_menu[block].classList.add('retreat');
-			if (game.actions && game.actions.battle_pass && game.actions.battle_pass.includes(block))
+			if (view.actions && view.actions.battle_pass && view.actions.battle_pass.includes(block))
 				ui.battle_menu[block].classList.add('pass');
-			if (game.actions && game.actions.battle_hit && game.actions.battle_hit.includes(block))
+			if (view.actions && view.actions.battle_hit && view.actions.battle_hit.includes(block))
 				ui.battle_menu[block].classList.add('hit');
 
-			update_steps(ui.battle_steps, block, steps, ui.battle_block[block], true);
+			update_steps(block, ui.battle_block[block], true);
 			if (reserve)
 				ui.battle_block[block].classList.add("secret");
 			else
 				ui.battle_block[block].classList.remove("secret");
-			if (moved || reserve)
+			if (view.moved[block] || reserve)
 				ui.battle_block[block].classList.add("moved");
 			else
 				ui.battle_block[block].classList.remove("moved");
@@ -636,27 +588,27 @@ function update_battle() {
 	}
 
 	if (player === CAESAR) {
-		fill_cell("FR", game.battle.CR, true);
-		fill_cell("FA", game.battle.CA, false);
-		fill_cell("FB", game.battle.CB, false);
-		fill_cell("FC", game.battle.CC, false);
-		fill_cell("FD", game.battle.CD, false);
-		fill_cell("EA", game.battle.PA, false);
-		fill_cell("EB", game.battle.PB, false);
-		fill_cell("EC", game.battle.PC, false);
-		fill_cell("ED", game.battle.PD, false);
-		fill_cell("ER", game.battle.PR, true);
+		fill_cell("FR", view.battle.CR, true);
+		fill_cell("FA", view.battle.CA, false);
+		fill_cell("FB", view.battle.CB, false);
+		fill_cell("FC", view.battle.CC, false);
+		fill_cell("FD", view.battle.CD, false);
+		fill_cell("EA", view.battle.PA, false);
+		fill_cell("EB", view.battle.PB, false);
+		fill_cell("EC", view.battle.PC, false);
+		fill_cell("ED", view.battle.PD, false);
+		fill_cell("ER", view.battle.PR, true);
 	} else {
-		fill_cell("ER", game.battle.CR, true);
-		fill_cell("EA", game.battle.CA, false);
-		fill_cell("EB", game.battle.CB, false);
-		fill_cell("EC", game.battle.CC, false);
-		fill_cell("ED", game.battle.CD, false);
-		fill_cell("FA", game.battle.PA, false);
-		fill_cell("FB", game.battle.PB, false);
-		fill_cell("FC", game.battle.PC, false);
-		fill_cell("FD", game.battle.PD, false);
-		fill_cell("FR", game.battle.PR, true);
+		fill_cell("ER", view.battle.CR, true);
+		fill_cell("EA", view.battle.CA, false);
+		fill_cell("EB", view.battle.CB, false);
+		fill_cell("EC", view.battle.CC, false);
+		fill_cell("ED", view.battle.CD, false);
+		fill_cell("FA", view.battle.PA, false);
+		fill_cell("FB", view.battle.PB, false);
+		fill_cell("FC", view.battle.PC, false);
+		fill_cell("FD", view.battle.PD, false);
+		fill_cell("FR", view.battle.PR, true);
 	}
 }
 
@@ -671,15 +623,15 @@ function update_card_display(element, card, prior_card) {
 }
 
 function update_cards() {
-	update_card_display(document.getElementById("caesar_card"), game.c_card, game.prior_c_card);
-	update_card_display(document.getElementById("pompeius_card"), game.p_card, game.prior_p_card);
+	update_card_display(document.getElementById("caesar_card"), view.c_card, view.prior_c_card);
+	update_card_display(document.getElementById("pompeius_card"), view.p_card, view.prior_p_card);
 
 	for (let c = 1; c <= 27; ++c) {
 		let element = ui.cards[c];
-		if (game.hand.includes(c)) {
+		if (view.hand.includes(c)) {
 			element.classList.add("show");
-			if (game.actions && game.actions.card) {
-				if (game.actions.card.includes(c)) {
+			if (view.actions && view.actions.card) {
+				if (view.actions.card.includes(c)) {
 					element.classList.add("enabled");
 					element.classList.remove("disabled");
 				} else {
@@ -695,99 +647,51 @@ function update_cards() {
 		}
 	}
 
-	if (player === 'Observer') {
-		let n = game.hand.length;
-		for (let c = 1; c <= 6; ++c)
-			if (c <= n)
-				ui.card_backs[c].classList.add("show");
-			else
-				ui.card_backs[c].classList.remove("show");
-	}
+	let n = view.hand.length;
+	for (let c = 1; c <= 6; ++c)
+		if (c <= n && player === 'Observer')
+			ui.card_backs[c].classList.add("show");
+		else
+			ui.card_backs[c].classList.remove("show");
 }
 
 function on_update() {
-	document.getElementById("turn").className = "year_" + game.year;
-	document.getElementById("caesar_vp").textContent = game.c_vp + " VP";
-	document.getElementById("pompeius_vp").textContent = game.p_vp + " VP";
-	if (game.turn < 1)
-		document.getElementById("turn_info").textContent = `Year ${game.year}`;
+	if (!ui.old_steps) {
+		ui.old_steps = view.steps;
+		ui.old_location = view.location;
+	}
+
+	document.getElementById("turn").className = "year_" + view.year;
+	document.getElementById("caesar_vp").textContent = view.c_vp + " VP";
+	document.getElementById("pompeius_vp").textContent = view.p_vp + " VP";
+	if (view.turn < 1)
+		document.getElementById("turn_info").textContent = `Year ${view.year}`;
 	else
-		document.getElementById("turn_info").textContent = `Turn ${game.turn} of Year ${game.year}`;
+		document.getElementById("turn_info").textContent = `Turn ${view.turn} of Year ${view.year}`;
 
 	action_button("surprise", "Surprise!");
 	action_button("pass");
 	action_button("undo", "Undo");
 
-	ui.seen.clear();
-
 	update_cards();
 	update_map();
 
-	for (let b in BLOCKS)
-		if (!ui.seen.has(b))
-			ui.map_steps[b] = 0;
-
-	ui.seen.clear();
-
-	if (game.battle) {
-		document.getElementById("battle_header").textContent = game.battle.title;
-		document.getElementById("battle_message").textContent = game.battle.flash;
+	if (view.battle) {
+		document.getElementById("battle_header").textContent = view.battle.title;
+		document.getElementById("battle_message").textContent = view.battle.flash;
 		document.getElementById("battle").classList.add("show");
 		update_battle();
 	} else {
 		document.getElementById("battle").classList.remove("show");
 	}
 
-	for (let b in BLOCKS)
-		if (!ui.seen.has(b))
-			ui.battle_steps[b] = 0;
+	ui.old_location = Object.assign({}, view.location);
+	ui.old_steps = Object.assign({}, view.steps);
 }
 
 function select_card(c) {
 	send_action('card', c);
 }
-
-function select_space(evt) {
-	send_action('space', evt.target.space);
-}
-
-function on_click_battle_block(evt) {
-	send_action('block', evt.target.block);
-}
-
-function on_click_map_block(evt) {
-	if (!game.battle)
-		send_action('block', evt.target.block);
-}
-
-function select_secret_block(evt) {
-	let element = evt.target;
-	let owner = null;
-	let where = null;
-	for (let o in ui.secret) {
-		for (let s in ui.secret[o]) {
-			if (ui.secret[o][s].includes(element)) {
-				owner = o;
-				where = s;
-				break;
-			}
-		}
-	}
-	if (game.actions && game.actions.secret && game.actions.secret.includes(where)) {
-		socket.emit('action', 'secret', [where, owner]);
-		game.actions = null;
-	}
-}
-
-function select_battle_hit(evt) { send_action('battle_hit', evt.target.block); }
-function select_battle_fire(evt) { send_action('battle_fire', evt.target.block); }
-function select_battle_retreat(evt) { send_action('battle_retreat', evt.target.block); }
-
-function select_battle_pass(evt) {
-	if (window.confirm("Are you sure that you want to PASS with " + block_name(evt.target.block) + "?"))
-		send_action('battle_pass', evt.target.block);
-}
-
 
 build_map();
 
@@ -796,6 +700,3 @@ document.getElementById("battle").classList.add(label_style+'-labels');
 
 drag_element_with_mouse("#battle", "#battle_header");
 scroll_with_middle_mouse("main");
-init_map_zoom();
-init_shift_zoom();
-init_client([ "Caesar", "Pompeius" ]);

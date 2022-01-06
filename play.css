@@ -4,8 +4,8 @@ main { background-color: #461145; }
 #roles { background-color: tan; }
 header { background-color: tan; }
 header.your_turn { background-color: orange; }
-.one .role_name { background-color: salmon; }
-.two .role_name { background-color: #eb5; }
+#role_Caesar .role_name { background-color: salmon; }
+#role_Pompeius .role_name { background-color: #eb5; }
 #turn_info { background-color: burlywood; }
 
 #log { background-color: wheat; }
@@ -82,7 +82,7 @@ header.your_turn { background-color: orange; }
 #battle_header { background-color: brown; color: lemonchiffon; }
 .battle_separator { background-color: brown; }
 
-.battle_line.enemy .battle_menu_list { min-height: 0; }
+body:not(.replay) .battle_line.enemy .battle_menu_list { min-height: 0; }
 .battle_reserves .battle_menu_list { min-height: 0; }
 .battle_reserves > td > div { height: 75px; padding: 5px; }
 .battle_a_cell > div { min-width: 90px; padding: 5px 5px; }
