@@ -939,14 +939,18 @@ function resume_play_card() {
 
 states.play_card = {
 	prompt: function (view, current) {
-		if (current === "Observer")
+		if (current === "Observer") {
+			view.prior_c_card = game.prior_c_card;
+			view.prior_p_card = game.prior_p_card;
 			return view.prompt = "Waiting for players to play a card.";
+		}
 		if (current === CAESAR) {
 			view.prior_p_card = game.prior_p_card;
 			if (game.c_card) {
 				view.prompt = "Waiting for Pompeius to play a card.";
 				gen_action(view, 'undo');
 			} else {
+				view.prior_c_card = game.prior_c_card;
 				view.prompt = "Play a card.";
 				for (let c of game.c_hand)
 					gen_action(view, 'card', c);
@@ -958,6 +962,7 @@ states.play_card = {
 				view.prompt = "Waiting for Caesar to play a card.";
 				gen_action(view, 'undo');
 			} else {
+				view.prior_p_card = game.prior_p_card;
 				view.prompt = "Play a card.";
 				for (let c of game.p_hand)
 					gen_action(view, 'card', c);
