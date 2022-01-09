@@ -1200,16 +1200,46 @@ states.vulcan = {
 	},
 	space: function (city) {
 		log("Vulcan strikes " + city + "!");
-		for (let b in BLOCKS) {
-			if (game.location[b] === city) {
-				reduce_block(b);
-			}
+		if (game.automatic_disruption) {
+			for (let b in BLOCKS)
+				if (game.location[b] === city)
+					reduce_block(b);
+			// uh-oh! cleopatra switched sides!
+			if (is_contested_city(city))
+				game.attacker[city] = game.active;
+			end_player_turn();
+		} else {
+			game.where = city;
+			game.vulcan = [];
+			for (let b in BLOCKS)
+				if (game.location[b] === city)
+					game.vulcan.push(b);
+			game.active = enemy(game.active);
+			game.state = 'apply_vulcan';
 		}
+	},
+}
+
+states.apply_vulcan = {
+	prompt: function (view, current) {
+		if (is_inactive_player(current))
+			return view.prompt = "Waiting for " + game.active + "...";
+		view.prompt = "Apply Vulcan hits in " + game.where + ".";
+		for (let i = 0; i < game.vulcan.length; ++i)
+			gen_action(view, 'block', game.vulcan[i]);
+	},
+	block: function (who) {
+		reduce_block(who);
 		// uh-oh! cleopatra switched sides!
-		if (is_contested_city(city)) {
-			game.attacker[city] = game.active;
+		if (is_contested_city(game.where))
+			game.attacker[game.where] = game.active;
+		remove_from_array(game.vulcan, who);
+		if (game.vulcan.length === 0) {
+			delete game.vulcan;
+			game.where = null;
+			game.active = game.p1;
+			end_player_turn();
 		}
-		end_player_turn();
 	},
 }
 
@@ -1704,19 +1734,64 @@ function resume_battle() {
 	pump_battle_round();
 }
 
-function disrupt_attacking_reserves() {
-	for (let b in BLOCKS)
-		if (game.location[b] === game.where && block_owner(b) === game.attacker[game.where])
-			if (game.reserves.includes(b))
-				reduce_block(b);
-}
-
 function bring_on_reserves() {
 	for (let b in BLOCKS) {
 		if (game.location[b] === game.where) {
 			remove_from_array(game.reserves, b);
 		}
 	}
+}
+
+function goto_disrupt_reserves() {
+	game.flash = "Reserves are disrupted.";
+	if (game.automatic_disruption) {
+		for (let b in BLOCKS)
+			if (game.location[b] === game.where && block_owner(b) === game.attacker[game.where])
+				if (game.reserves.includes(b))
+					reduce_block(b);
+		end_disrupt_reserves();
+	} else {
+		game.disrupted = [];
+		for (let b in BLOCKS)
+			if (game.location[b] === game.where && block_owner(b) === game.attacker[game.where])
+				if (game.reserves.includes(b))
+					game.disrupted.push(b);
+		game.active = game.attacker[game.where];
+		game.state = 'disrupt_reserves';
+	}
+}
+
+function disrupt_block(who) {
+	game.flash = "Reserves are disrupted.";
+	reduce_block(who);
+	remove_from_array(game.disrupted, who);
+	if (game.disrupted.length === 0)
+		end_disrupt_reserves();
+}
+
+function end_disrupt_reserves() {
+	game.state = 'battle_round'
+	game.flash = "";
+	delete game.disrupted;
+	bring_on_reserves();
+	log("~ Battle Round " + game.battle_round + " ~");
+	pump_battle_round();
+}
+
+states.disrupt_reserves = {
+	show_battle: true,
+	prompt: function (view, current) {
+		if (is_inactive_player(current))
+			return view.prompt = "Waiting for " + game.active + " to apply disruption hits...";
+		view.prompt = "Apply disruption hits to reserves."
+		for (let b of game.disrupted) {
+			gen_action(view, 'battle_hit', b);
+			gen_action(view, 'block', b);
+			gen_action(view, 'block', b);
+		}
+	},
+	block: disrupt_block,
+	battle_hit: disrupt_block,
 }
 
 function start_battle_round() {
@@ -1733,14 +1808,14 @@ function start_battle_round() {
 				game.surprise = 0;
 			if (count_defenders() === 0) {
 				log("Defending main force was eliminated.");
-				log("Defending reserves are disrupted.");
-				game.attacker[game.where] = enemy(game.attacker[game.where]);
-				disrupt_attacking_reserves();
 				log("The attacker is now the defender.");
+				log("Reserves are disrupted.");
+				game.attacker[game.where] = enemy(game.attacker[game.where]);
+				return goto_disrupt_reserves();
 			} else if (count_attackers() === 0) {
 				log("Attacking main force was eliminated.");
-				log("Attacking reserves are disrupted.");
-				disrupt_attacking_reserves();
+				log("Reserves are disrupted.");
+				return goto_disrupt_reserves();
 			}
 			bring_on_reserves();
 		}
@@ -2410,6 +2485,11 @@ exports.setup = function (seed, scenario, options) {
 		reserves: [],
 		log: [],
 	};
+
+	// Option for backwards compatible replays.
+	if (options && options.automatic_disruption)
+		game.automatic_disruption = 1;
+
 	setup_historical_deployment();
 	if (scenario === "Free Deployment")
 		start_free_deployment();
