@@ -434,7 +434,7 @@ function hide_block(element) {
 }
 
 function is_known_block(who) {
-	if (view.game_over)
+	if (view.game_over && player === 'Observer')
 		return true;
 	if (block_owner(who) === player)
 		return true;
@@ -445,7 +445,7 @@ function is_known_block(who) {
 }
 
 function is_visible_block(where, who) {
-	if (view.game_over)
+	if (view.game_over && player === 'Observer')
 		return true;
 	if (where === "Levy")
 		return block_owner(who) === player;
