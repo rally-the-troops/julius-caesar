@@ -2051,7 +2051,8 @@ function list_victims(p) {
 
 function apply_hit(who) {
 	game.flash = block_name(who) + " takes a hit.";
-	reduce_block(who, 'combat');
+	log_battle(block_name(who) + " takes a hit.");
+	reduce_block(who);
 	game.hits--;
 	if (game.hits === 0)
 		resume_battle();
@@ -2464,7 +2465,6 @@ exports.ready = function (scenario, options, players) {
 exports.setup = function (seed, scenario, options) {
 	game = {
 		seed: seed,
-		tournament: options && options.tournament ? 1 : 0,
 		c_hand: [],
 		p_hand: [],
 		c_card: 0,
@@ -2485,6 +2485,9 @@ exports.setup = function (seed, scenario, options) {
 		reserves: [],
 		log: [],
 	};
+
+	if (options && options.tournament)
+		game.tournament = 1;
 
 	// Option for backwards compatible replays.
 	if (options && options.automatic_disruption)
