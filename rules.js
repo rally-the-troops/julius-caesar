@@ -6,6 +6,11 @@ exports.scenarios = [
 	// TODO: Avalon Digital scenarios?
 ];
 
+exports.roles = [
+	"Caesar",
+	"Pompeius",
+];
+
 const { CARDS, SPACES, EDGES, BLOCKS } = require('./data');
 
 const APOLLO = 1;
