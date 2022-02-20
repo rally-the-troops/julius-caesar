@@ -1049,7 +1049,6 @@ function reveal_cards() {
 	// Tournament rule: Caesar always goes first on the first turn of the game.
 	if (game.year === 705 && game.turn === 1 && game.tournament) {
 		if (game.p1 !== CAESAR) {
-			log("Tournament rule:\nCaesar is the first player on the very first turn of the game.");
 			game.p1 = CAESAR;
 			game.p2 = POMPEIUS;
 		}
@@ -2491,8 +2490,11 @@ exports.setup = function (seed, scenario, options) {
 		log: [],
 	};
 
-	if (options && options.tournament)
+	if (options && options.tournament) {
+		log("Tournament rule:\nCaesar is the first player on the very first turn of the game.");
+		log("");
 		game.tournament = 1;
+	}
 
 	// Option for backwards compatible replays.
 	if (options && options.automatic_disruption)
