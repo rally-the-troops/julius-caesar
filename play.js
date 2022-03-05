@@ -68,7 +68,7 @@ let ui = {
 	present: new Set(),
 };
 
-create_log_entry = function (text) {
+function on_log(text) {
 	let p = document.createElement("div");
 	text = text.replace(/&/g, "&amp;");
 	text = text.replace(/</g, "&lt;");
