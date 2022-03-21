@@ -1241,7 +1241,7 @@ states.apply_vulcan = {
 		if (game.vulcan.length === 0) {
 			delete game.vulcan;
 			game.where = null;
-			game.active = game.p1;
+			game.active = enemy(game.active);
 			end_player_turn();
 		}
 	},
