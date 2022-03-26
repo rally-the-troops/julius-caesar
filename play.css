@@ -100,8 +100,15 @@ body:not(.replay) .battle_line.enemy .battle_menu_list { min-height: 0; }
 #map {
 	width: 2475px;
 	height: 1275px;
-	background-image: url("map.jpg");
+	background-repeat: no-repeat;
 	background-size: cover;
+}
+
+html.avif #map { background-image: url("map.1x.avif") }
+html.jpeg #map { background-image: url("map.1x.jpg") }
+@media (min-resolution: 97dpi) {
+	html.avif #map { background-image: url("map.2x.avif") }
+	html.jpeg #map { background-image: url("map.2x.jpg") }
 }
 
 #turn {
