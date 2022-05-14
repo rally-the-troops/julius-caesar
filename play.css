@@ -7,8 +7,10 @@ header.your_turn { background-color: orange; }
 #role_Caesar .role_name { background-color: salmon; }
 #role_Pompeius .role_name { background-color: #eb5; }
 #turn_info { background-color: burlywood; }
+.role_vp { float: right; }
 
 #log { background-color: wheat; }
+#log div { padding-left: 20px; text-indent: -12px; }
 #log .st { background-color: brown; color: gold; font-weight: bold; }
 #log .C { background-color: salmon; }
 #log .P { background-color: #eb5; }
@@ -16,6 +18,15 @@ header.your_turn { background-color: orange; }
 #log .br { font-style: italic; text-decoration: underline; }
 
 /* CARDS */
+
+.hand {
+	margin: 25px;
+	display: flex;
+	flex-wrap: wrap;
+	justify-content: center;
+	min-height: 350px;
+	gap: 20px;
+}
 
 .card_back { background-image: url('cards/card_back.jpg'); }
 .card_apollo { background-image: url('cards/card_apollo.jpg'); }
@@ -35,6 +46,8 @@ header.your_turn { background-color: orange; }
 .card_41 { background-image: url('cards/card_41.jpg'); }
 
 .card {
+	background-size: cover;
+	background-repeat: no-repeat;
 	background-color: white;
 	width: 225px;
 	height: 350px;
@@ -52,12 +65,24 @@ header.your_turn { background-color: orange; }
 	transform: scale(1.1);
 }
 
+.card.enabled {
+	cursor: pointer;
+}
+
+.card.disabled {
+	filter: grayscale(100%);
+}
+
 .card.prior {
 	filter: grayscale(100%);
 }
 
 .card_back {
 	background-color: #822c1f;
+}
+
+.role_info {
+	overflow: clip; /* clip dropshadow from filter:grayscale() stacking context */
 }
 
 .role_info { padding: 15px; }
