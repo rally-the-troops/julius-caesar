@@ -145,7 +145,7 @@ function on_focus_battle_block(evt) {
 	let b = evt.target.block;
 	let msg = block_name(b);
 	if (!evt.target.classList.contains("known"))
-		document.getElementById("status").textContent = "Reserves";
+		msg = "Reserves";
 
 	if (view.actions && view.actions.battle_fire && view.actions.battle_fire.includes(b))
 		msg = "Fire with " + msg;
@@ -291,6 +291,7 @@ function build_map() {
 		menu.classList.add("battle_menu");
 		menu.appendChild(element);
 		menu.appendChild(action_list);
+		menu.block = b;
 		ui.battle_menu[b] = menu;
 	}
 
@@ -530,14 +531,43 @@ function update_map() {
 	}
 }
 
+function compare_blocks(a, b, ballista) {
+	let aa = BLOCKS[a].initiative;
+	let bb = BLOCKS[b].initiative;
+	if (aa === 'X') aa = ballista;
+	if (bb === 'X') bb = ballista;
+	if (aa === bb) {
+		aa = BLOCKS[a].label;
+		bb = BLOCKS[b].label;
+	}
+	return (aa < bb) ? -1 : (aa > bb) ? 1 : 0;
+}
+
+function sort_battle_row(root, ballista) {
+	let swapped;
+	let children = root.children;
+	do {
+		swapped = false;
+		for (let i = 1; i < children.length; ++i) {
+			if (compare_blocks(children[i-1].block, children[i].block, ballista) > 0) {
+				children[i].after(children[i-1]);
+				swapped = true;
+			}
+		}
+	} while (swapped);
+}
+
 function update_battle() {
-	function fill_cell(name, list, reserve) {
+	function fill_cell(name, list, reserve, ballista) {
 		let cell = window[name];
 
 		ui.present.clear();
 
 		for (let block of list) {
 			ui.present.add(block);
+
+			if (!cell.contains(ui.battle_menu[block]))
+				cell.appendChild(ui.battle_menu[block]);
 
 			if (block === view.who)
 				ui.battle_menu[block].classList.add("selected");
@@ -577,38 +607,25 @@ function update_battle() {
 		}
 
 		for (let b in BLOCKS) {
-			if (ui.present.has(b)) {
-				if (!cell.contains(ui.battle_menu[b]))
-					cell.appendChild(ui.battle_menu[b]);
-			} else {
+			if (!ui.present.has(b)) {
 				if (cell.contains(ui.battle_menu[b]))
 					cell.removeChild(ui.battle_menu[b]);
 			}
 		}
+
+		sort_battle_row(cell, ballista);
 	}
 
 	if (player === CAESAR) {
-		fill_cell("FR", view.battle.CR, true);
-		fill_cell("FA", view.battle.CA, false);
-		fill_cell("FB", view.battle.CB, false);
-		fill_cell("FC", view.battle.CC, false);
-		fill_cell("FD", view.battle.CD, false);
-		fill_cell("EA", view.battle.PA, false);
-		fill_cell("EB", view.battle.PB, false);
-		fill_cell("EC", view.battle.PC, false);
-		fill_cell("ED", view.battle.PD, false);
-		fill_cell("ER", view.battle.PR, true);
+		fill_cell("FR", view.battle.CR, true, 'B');
+		fill_cell("FF", view.battle.CF, false, view.battle.A === CAESAR ? 'D' : 'B');
+		fill_cell("EF", view.battle.PF, false, view.battle.A === CAESAR ? 'B' : 'D');
+		fill_cell("ER", view.battle.PR, true, 'B');
 	} else {
-		fill_cell("ER", view.battle.CR, true);
-		fill_cell("EA", view.battle.CA, false);
-		fill_cell("EB", view.battle.CB, false);
-		fill_cell("EC", view.battle.CC, false);
-		fill_cell("ED", view.battle.CD, false);
-		fill_cell("FA", view.battle.PA, false);
-		fill_cell("FB", view.battle.PB, false);
-		fill_cell("FC", view.battle.PC, false);
-		fill_cell("FD", view.battle.PD, false);
-		fill_cell("FR", view.battle.PR, true);
+		fill_cell("FR", view.battle.PR, true, 'B');
+		fill_cell("FF", view.battle.PF, false, view.battle.A === POMPEIUS ? 'D' : 'B');
+		fill_cell("EF", view.battle.CF, false, view.battle.A === POMPEIUS ? 'B' : 'D');
+		fill_cell("ER", view.battle.CR, true, 'B');
 	}
 }
 

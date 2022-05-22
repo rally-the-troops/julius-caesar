@@ -17,30 +17,17 @@
 </head>
 <body>
 
-<table id="battle">
-<tr>
-<th id="battle_header" colspan=4>
-<tr class="battle_reserves enemy">
-<td colspan=4><div id="ER"></div>
-<tr class="battle_line enemy">
-<td class="battle_a_cell"><div id="EA"></div>
-<td class="battle_b_cell"><div id="EB"></div>
-<td class="battle_c_cell"><div id="EC"></div>
-<td class="battle_d_cell"><div id="ED"></div>
-<tr class="battle_separator">
-<td colspan=4>
-<tr class="battle_line friendly">
-<td class="battle_a_cell"><div id="FA"></div>
-<td class="battle_b_cell"><div id="FB"></div>
-<td class="battle_c_cell"><div id="FC"></div>
-<td class="battle_d_cell"><div id="FD"></div>
-<tr class="battle_reserves friendly">
-<td colspan=4><div id="FR"></div>
-<tr>
-<th id="battle_message" colspan=4>
-</table>
+<div id="battle">
+<div id="battle_header"></div>
+<div id="ER"></div>
+<div id="EF"></div>
+<div id="FF"></div>
+<div id="FR"></div>
+<div id="battle_message"></div>
+</div>
 
 <header>
+	<div id="toolbar">
 	<div class="menu">
 		<div class="menu_title"><img src="/images/cog.svg"></div>
 		<div class="menu_popup">
@@ -61,6 +48,7 @@
 	<div class="icon_button" onclick="toggle_blocks()"><img src="/images/earth-africa-europe.svg"></div>
 	<div class="icon_button" onclick="toggle_zoom()"><img src="/images/magnifying-glass.svg"></div>
 	<div class="icon_button" onclick="toggle_log()"><img src="/images/scroll-quill.svg"></div>
+	</div>
 	<div id="prompt"></div>
 	<div id="actions"></div>
 </header>

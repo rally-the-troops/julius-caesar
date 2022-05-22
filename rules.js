@@ -2583,8 +2583,9 @@ exports.resign = function (state, current) {
 
 function make_battle_view() {
 	let bv = {
-		CA: [], CB: [], CC: [], CD: [], CR: [],
-		PA: [], PB: [], PC: [], PD: [], PR: [],
+		A: game.attacker[game.where],
+		CF: [], CR: [],
+		PF: [], PR: [],
 		flash: game.flash
 	};
 
@@ -2609,15 +2610,9 @@ function make_battle_view() {
 	}
 
 	fill_cell("CR", CAESAR, b => is_battle_reserve(b));
-	fill_cell("CA", CAESAR, b => !is_battle_reserve(b) && block_initiative(b) === 'A');
-	fill_cell("CB", CAESAR, b => !is_battle_reserve(b) && block_initiative(b) === 'B');
-	fill_cell("CC", CAESAR, b => !is_battle_reserve(b) && block_initiative(b) === 'C');
-	fill_cell("CD", CAESAR, b => !is_battle_reserve(b) && block_initiative(b) === 'D');
+	fill_cell("CF", CAESAR, b => !is_battle_reserve(b));
 	fill_cell("PR", POMPEIUS, b => is_battle_reserve(b));
-	fill_cell("PA", POMPEIUS, b => !is_battle_reserve(b) && block_initiative(b) === 'A');
-	fill_cell("PB", POMPEIUS, b => !is_battle_reserve(b) && block_initiative(b) === 'B');
-	fill_cell("PC", POMPEIUS, b => !is_battle_reserve(b) && block_initiative(b) === 'C');
-	fill_cell("PD", POMPEIUS, b => !is_battle_reserve(b) && block_initiative(b) === 'D');
+	fill_cell("PF", POMPEIUS, b => !is_battle_reserve(b));
 
 	return bv;
 }

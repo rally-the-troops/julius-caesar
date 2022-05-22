@@ -105,15 +105,7 @@ header.your_turn { background-color: orange; }
 #battle { background-color: tan; }
 #battle_message { background-color: wheat; }
 #battle_header { background-color: brown; color: lemonchiffon; }
-.battle_separator { background-color: brown; }
-
-body:not(.replay) .battle_line.enemy .battle_menu_list { min-height: 0; }
-.battle_reserves .battle_menu_list { min-height: 0; }
-.battle_reserves > td > div { height: 75px; padding: 5px; }
-.battle_a_cell > div { min-width: 90px; padding: 5px 5px; }
-.battle_b_cell > div { min-width: 270px; padding: 5px 5px; }
-.battle_c_cell > div { min-width: 270px; padding: 5px 5px; }
-.battle_d_cell > div { min-width: 90px; padding: 5px 5px; }
+#FR, #ER { background-color: #bda27e; }
 
 /* MAP WITH BLOCKS AND SPACES */
 
@@ -248,4 +240,22 @@ body.Observer .columbia-labels .known.jupiter.Cleopatra { border: 3px solid #822
 	transition-property: top, left, transform, filter;
 	transition-duration: 700ms, 700ms, 300ms, 300ms;
 	transition-timing-function: ease;
+}
+
+@media (max-width: 640px) {
+	.card {
+		width: 112px !important;
+		height: 175px !important;
+		border-radius: 6px !important;
+	}
+	.role_info {
+		margin: 0 auto !important;
+		padding: 15px 0 !important;
+	}
+	.role_info .card {
+		margin: 0 auto !important;
+	}
+	.hand {
+		min-height: 175px;
+	}
 }
