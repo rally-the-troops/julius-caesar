@@ -43,18 +43,21 @@ function random(n) {
 	return Math.floor(((game.seed = game.seed * 48271 % 0x7fffffff) / 0x7fffffff) * n);
 }
 
+function logbr() {
+	if (game.log.length > 0 && game.log[game.log.length-1] !== "")
+		game.log.push("");
+}
+
 function log(...args) {
 	let s = Array.from(args).join("");
 	game.log.push(s);
 }
 
-function log_battle(...args) {
-	let s = Array.from(args).join("");
+function log_battle(s) {
 	game.log.push(game.active[0] + ": " + s);
 }
 
-function logp(...args) {
-	let s = Array.from(args).join("");
+function logp(s) {
 	game.log.push(game.active + " " + s);
 }
 
@@ -255,12 +258,12 @@ function is_dead(b) {
 function eliminate_block(who) {
 	if (who === CLEOPATRA) {
 		let new_owner = enemy(game.owner[who]);
-		game.flash = "Cleopatra is captured.";
-		log("Cleopatra joins " + new_owner + "!");
+		game.flash = "Cleopatra was captured.";
+		log("Cleopatra joined " + new_owner + "!");
 		game.owner[who] = new_owner;
 	} else {
-		game.flash = block_name(who) + " is eliminated.";
-		log(block_name(who), " is eliminated.");
+		game.flash = block_name(who) + " was eliminated.";
+		log(block_name(who) + " was eliminated.");
 		game.location[who] = DEAD;
 		game.steps[who] = BLOCKS[who].steps;
 		delete game.owner[who];
@@ -797,8 +800,8 @@ states.free_deployment_to = {
 }
 
 function start_year() {
-	log("");
-	log("Start Year ", game.year, ".");
+	logbr();
+	log("Start Year " + game.year);
 	game.turn = 1;
 	let deck = reset_deck();
 	game.c_hand = deal_cards(deck, 6);
@@ -910,8 +913,8 @@ function start_first_turn() {
 	game.main_road = {};
 	game.moved = {};
 	game.reserves = [];
-	log("");
-	log("Start Turn ", game.turn, " of Year ", game.year, ".");
+	logbr();
+	log("Start Turn " + game.turn + " of Year " + game.year);
 	reveal_cards();
 }
 
@@ -927,8 +930,8 @@ function start_turn() {
 	game.state = 'play_card';
 	game.show_cards = false;
 	game.surprise = 0;
-	log("");
-	log("Start Turn ", game.turn, " of Year ", game.year, ".");
+	logbr();
+	log("Start Turn " + game.turn + " of Year " + game.year);
 }
 
 function resume_play_card() {
@@ -1008,12 +1011,12 @@ function reveal_cards() {
 	delete game.neptune;
 	delete game.pluto;
 
-	log("");
-	log("Caesar plays ", CARDS[game.c_card].name, ".");
-	log("Pompeius plays ", CARDS[game.p_card].name, ".");
+	logbr();
+	log("Caesar played " + CARDS[game.c_card].name + ".");
+	log("Pompeius played " + CARDS[game.p_card].name + ".");
 
 	if (CARDS[game.c_card].event && CARDS[game.p_card].event) {
-		log("Events cancel each other.");
+		log("Events canceled each other.");
 		game.prior_c_card = game.c_card;
 		game.prior_p_card = game.p_card;
 		end_turn();
@@ -1022,11 +1025,11 @@ function reveal_cards() {
 
 	if (game.c_card === APOLLO) {
 		game.c_card = game.prior_p_card;
-		log("Apollo copies " + CARDS[game.c_card].name + ".");
+		log("Apollo copied " + CARDS[game.c_card].name + ".");
 	}
 	if (game.p_card === APOLLO) {
 		game.p_card = game.prior_c_card;
-		log("Apollo copies " + CARDS[game.p_card].name + ".");
+		log("Apollo copied " + CARDS[game.p_card].name + ".");
 	}
 
 	game.prior_c_card = game.c_card;
@@ -1060,8 +1063,8 @@ function reveal_cards() {
 }
 
 function start_player_turn() {
-	log("");
-	log("Start ", game.active, " turn.");
+	logbr();
+	log("Start " + game.active);
 	reset_road_limits();
 	game.activated = [];
 
@@ -1122,7 +1125,7 @@ function start_player_turn() {
 function jupiter_block(b) {
 	let type = BLOCKS[b].type;
 	if (type === 'navis' || type === 'leader') {
-		log("Jupiter reduces ", block_name(b), ".");
+		log("Jupiter reduced " + block_name(b) + ".");
 		reduce_block(b);
 		end_player_turn();
 	} else {
@@ -1185,7 +1188,7 @@ states.jupiter_to = {
 				gen_action(view, 'space', to);
 	},
 	space: function (to) {
-		log(block_name(game.who) + " joins " + game.active + ":\n" +
+		log(block_name(game.who) + " joined " + game.active + ":\n" +
 			game.location[game.who] + " \u2192 " + to + ".");
 		game.location[game.who] = to;
 		game.who = null;
@@ -1203,7 +1206,7 @@ states.vulcan = {
 				gen_action(view, 'space', s);
 	},
 	space: function (city) {
-		log("Vulcan strikes " + city + "!");
+		log("Vulcan struck " + city + "!");
 		if (game.automatic_disruption) {
 			for (let b in BLOCKS)
 				if (game.location[b] === city)
@@ -1392,7 +1395,7 @@ states.move_where = {
 			game.location[game.who] = to;
 			game.last_from = from;
 			log_move_start(from, to);
-			logp("amphibious moves.");
+			logp("amphibious moved.");
 			if (is_sea(to)) {
 				game.sea_moved[to] = true;
 				game.state = 'amphibious_move_to';
@@ -1404,7 +1407,7 @@ states.move_where = {
 			}
 		} else {
 			if (!game.activated.includes(from)) {
-				logp("activates " + from + ".");
+				logp("activated " + from + ".");
 				game.moves --;
 				game.activated.push(from);
 			}
@@ -1494,7 +1497,7 @@ states.mercury_move_1 = {
 	space: function (to) {
 		let from = game.location[game.who];
 		if (!game.activated.includes(from)) {
-			logp("activates " + from + ".");
+			logp("activated " + from + ".");
 			game.moves --;
 			game.activated.push(from);
 		}
@@ -1573,7 +1576,7 @@ states.mercury_move_3 = {
 }
 
 function end_movement() {
-	print_turn_log("moves");
+	print_turn_log("moved");
 
 	if (game.mars === game.active || game.neptune === game.active)
 		return goto_mars_and_neptune();
@@ -1658,7 +1661,7 @@ function end_player_turn() {
 	clear_undo();
 
 	if (game.turn_log)
-		print_turn_log("levies");
+		print_turn_log("levied");
 
 	if (game.active === game.p1) {
 		game.active = game.p2;
@@ -1724,8 +1727,8 @@ function count_defenders() {
 function start_battle() {
 	game.battle_round = 0;
 	game.flash = "";
-	log("");
-	log("Battle in ", game.where, ".");
+	logbr();
+	log("Battle in " + game.where);
 	if (game.surprise === game.where)
 		log("Surprise attack.");
 	game.state = 'battle_round';
@@ -1747,7 +1750,7 @@ function bring_on_reserves() {
 }
 
 function goto_disrupt_reserves() {
-	game.flash = "Reserves are disrupted.";
+	game.flash = "Reserves were disrupted.";
 	if (game.automatic_disruption) {
 		for (let b in BLOCKS)
 			if (game.location[b] === game.where && block_owner(b) === game.attacker[game.where])
@@ -1766,7 +1769,7 @@ function goto_disrupt_reserves() {
 }
 
 function disrupt_block(who) {
-	game.flash = "Reserves are disrupted.";
+	game.flash = "Reserves were disrupted.";
 	reduce_block(who);
 	remove_from_array(game.disrupted, who);
 	if (game.disrupted.length === 0)
@@ -1801,7 +1804,7 @@ states.disrupt_reserves = {
 function start_battle_round() {
 	if (++game.battle_round <= 4) {
 		if (game.turn_log && game.turn_log.length > 0)
-			print_turn_log_no_active("Retreats from " + game.where + ":");
+			print_turn_log_no_active("Retreated from " + game.where + ":");
 		game.turn_log = [];
 
 		reset_road_limits();
@@ -1813,12 +1816,12 @@ function start_battle_round() {
 			if (count_defenders() === 0) {
 				log("Defending main force was eliminated.");
 				log("The attacker is now the defender.");
-				log("Reserves are disrupted.");
+				log("Reserves were disrupted.");
 				game.attacker[game.where] = enemy(game.attacker[game.where]);
 				return goto_disrupt_reserves();
 			} else if (count_attackers() === 0) {
 				log("Attacking main force was eliminated.");
-				log("Reserves are disrupted.");
+				log("Reserves were disrupted.");
 				return goto_disrupt_reserves();
 			}
 			bring_on_reserves();
@@ -1890,7 +1893,7 @@ function pump_battle_round() {
 
 function end_battle() {
 	if (game.turn_log && game.turn_log.length > 0)
-		print_turn_log_no_active("Retreats from " + game.where + ":");
+		print_turn_log_no_active("Retreated from " + game.where + ":");
 	if (game.surprise === game.where)
 		game.surprise = 0;
 	game.flash = "";
@@ -1924,15 +1927,15 @@ function fire_with_block(b) {
 			rolls.push(DIE_MISS[die]);
 		}
 	}
-	game.flash = name + " fires " + rolls.join(" ") + " ";
+	game.flash = name + " fired " + rolls.join(" ") + " ";
 	if (game.hits === 0)
-		game.flash += "and misses.";
+		game.flash += "and missed.";
 	else if (game.hits === 1)
-		game.flash += "and scores 1 hit.";
+		game.flash += "and scored 1 hit.";
 	else
-		game.flash += "and scores " + game.hits + " hits.";
+		game.flash += "and scored " + game.hits + " hits.";
 
-	log_battle(name + " fires " + rolls.join("") + ".");
+	log_battle(name + " fired " + rolls.join("") + ".");
 
 	if (game.hits > 0) {
 		game.active = enemy(game.active);
@@ -1972,8 +1975,8 @@ function retreat_with_block(who) {
 }
 
 function pass_with_block(who) {
-	game.flash = block_name(who) + " passes.";
-	log_battle(block_name(who) + " passes.");
+	game.flash = block_name(who) + " passed.";
+	log_battle(block_name(who) + " passed.");
 	game.moved[who] = true;
 	resume_battle();
 }
@@ -2054,8 +2057,8 @@ function list_victims(p) {
 }
 
 function apply_hit(who) {
-	game.flash = block_name(who) + " takes a hit.";
-	log_battle(block_name(who) + " takes a hit.");
+	game.flash = block_name(who) + " took a hit.";
+	log_battle(block_name(who) + " took a hit.");
 	reduce_block(who);
 	game.hits--;
 	if (game.hits === 0)
@@ -2116,7 +2119,7 @@ states.retreat = {
 			game.state = 'sea_retreat';
 		} else {
 			move_to(game.who, from, to);
-			game.flash = block_name(game.who) + " retreats.";
+			game.flash = block_name(game.who) + " retreated.";
 			log_battle(game.flash);
 			game.turn_log.push([game.active, to]);
 			game.moved[game.who] = true;
@@ -2147,7 +2150,7 @@ states.sea_retreat = {
 	space: function (to) {
 		clear_undo();
 		let from = game.location[game.who];
-		game.flash = block_name(game.who) + " retreats.";
+		game.flash = block_name(game.who) + " retreated.";
 		log_battle(game.flash);
 		game.turn_log.push([game.active, from, to]);
 		move_to(game.who, from, to);
@@ -2161,7 +2164,7 @@ function goto_regroup() {
 	game.active = game.attacker[game.where];
 	if (is_enemy_space(game.where))
 		game.active = enemy(game.active);
-	log(game.active + " wins the battle in " + game.where + "!");
+	log(game.active + " won the battle in " + game.where + "!");
 	game.state = 'regroup';
 	game.turn_log = [];
 	clear_undo();
@@ -2187,7 +2190,7 @@ states.regroup = {
 		game.state = 'regroup_to';
 	},
 	pass: function () {
-		print_turn_log("regroups");
+		print_turn_log("regrouped");
 		clear_undo();
 		game.where = null;
 		goto_pick_battle();
@@ -2233,7 +2236,7 @@ function end_turn() {
 function cleopatra_goes_home() {
 	game.active = CAESAR;
 	if (game.location[CLEOPATRA] !== ALEXANDRIA)
-		log("Cleopatra goes home to Alexandria.");
+		log("Cleopatra went home to Alexandria.");
 	if (is_friendly_space(ALEXANDRIA))
 		game.owner[CLEOPATRA] = CAESAR;
 	else
@@ -2247,23 +2250,23 @@ function check_victory() {
 		game.result = CAESAR;
 		game.active = null;
 		game.state = 'game_over';
-		game.victory = "Caesar wins an early victory.";
-		log("");
+		game.victory = "Caesar won an early victory.";
+		logbr();
 		log(game.victory);
 	} else if (game.p_vp >= 10) {
-		game.victory = "Pompeius wins an early victory.";
+		game.victory = "Pompeius won an early victory.";
 		game.result = POMPEIUS;
 		game.active = null;
 		game.state = 'game_over';
-		log("");
+		logbr();
 		log(game.victory);
 	} else {
 		if (game.year === 709) {
 			end_game();
 		} else {
-			log("");
+			logbr();
 			log("Start Winter Turn of Year " + game.year);
-			log("");
+			logbr();
 			start_navis_to_port();
 		}
 	}
@@ -2335,7 +2338,7 @@ states.navis_to_port = {
 		game.state = 'navis_to_port_where';
 	},
 	pass: function () {
-		print_turn_log("moves to port");
+		print_turn_log("moved to port");
 		next_navis_to_port();
 	},
 	undo: pop_undo,
@@ -2406,7 +2409,7 @@ states.disband = {
 		disband_block(who);
 	},
 	pass: function () {
-		print_turn_log("disbands");
+		print_turn_log("disbanded");
 		if (game.active === CAESAR) {
 			game.turn_log = [];
 			game.active = POMPEIUS;
@@ -2445,14 +2448,14 @@ function end_game() {
 			game.result = null;
 	}
 	if (game.result === CAESAR)
-		game.victory = "Caesar wins!";
+		game.victory = "Caesar won!";
 	else if (game.result === POMPEIUS)
-		game.victory = "Pompeius wins!";
+		game.victory = "Pompeius won!";
 	else
-		game.victory = "The game is a draw.";
+		game.victory = "The game ended in a draw.";
 	game.active = null;
 	game.state = 'game_over';
-	log("");
+	logbr();
 	log(game.victory);
 }
 
@@ -2492,7 +2495,7 @@ exports.setup = function (seed, scenario, options) {
 
 	if (options && options.tournament) {
 		log("Tournament rule:\nCaesar is the first player on the very first turn of the game.");
-		log("");
+		logbr();
 		game.tournament = 1;
 	}
 
@@ -2570,7 +2573,7 @@ exports.action = function (state, current, action, arg) {
 exports.resign = function (state, current) {
 	game = state;
 	if (game.state !== 'game_over') {
-		log("");
+		logbr();
 		log(current + " resigned.");
 		count_vp();
 		game.active = null;
