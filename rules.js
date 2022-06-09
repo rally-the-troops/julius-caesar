@@ -14,6 +14,12 @@ exports.roles = [
 const { CARDS, SPACES, EDGES, BLOCKS } = require('./data');
 
 const APOLLO = 1;
+const JUPITER = 2;
+const MARS = 3;
+const MERCURY = 4;
+const NEPTUNE = 5;
+const PLUTO = 6;
+const VULCAN = 7;
 
 const OBSERVER = "Observer";
 const BOTH = "Both";
@@ -188,16 +194,23 @@ function roll_d6() {
 function reset_deck() {
 	let deck = [];
 	for (let c = 1; c <= 27; ++c)
-		deck.push(c);
+		if (!game.removed || !game.removed.includes(c))
+			deck.push(c);
 	return deck;
 }
 
 function deal_cards(deck, n) {
 	let hand = [];
-	for (let i = 0; i < n; ++i) {
+	let events = 0;
+	let max_events = (game.max_2_events ? 2 : n);
+	while (hand.length < n) {
 		let c = random(deck.length);
-		hand.push(deck[c]);
-		deck.splice(c, 1);
+		if (events < max_events || deck[c] > 7) {
+			if (deck[c] <= 7)
+				++events;
+			hand.push(deck[c]);
+			deck.splice(c, 1);
+		}
 	}
 	return hand;
 }
@@ -2493,14 +2506,60 @@ exports.setup = function (seed, scenario, options) {
 		log: [],
 	};
 
-	if (options && options.tournament) {
-		log("Tournament rule:\nCaesar is the first player on the very first turn of the game.");
-		logbr();
+	if (options.tournament) {
+		log("Caesar goes first on the first turn regardless of the cards played.");
 		game.tournament = 1;
 	}
 
+	if (options.max_2_events) {
+		log("At most 2 events per hand.");
+		game.max_2_events = 1;
+	}
+
+	game.removed = [];
+
+	if (options.remove_apollo || options.remove_all_events) {
+		log("Apollo removed from deck.");
+		game.removed.push(APOLLO);
+	}
+
+	if (options.remove_jupiter || options.remove_all_events) {
+		log("Jupiter removed from deck.");
+		game.removed.push(JUPITER);
+	}
+
+	if (options.remove_mars || options.remove_all_events) {
+		log("Mars removed from deck.");
+		game.removed.push(MARS);
+	}
+
+	if (options.remove_mercury || options.remove_all_events) {
+		log("Mercury removed from deck.");
+		game.removed.push(MERCURY);
+	}
+
+	if (options.remove_neptune || options.remove_all_events) {
+		log("Neptune removed from deck.");
+		game.removed.push(NEPTUNE);
+	}
+
+	if (options.remove_pluto || options.remove_all_events) {
+		log("Pluto removed from deck.");
+		game.removed.push(PLUTO);
+	}
+
+	if (options.remove_vulcan || options.remove_all_events) {
+		log("Vulcan removed from deck.");
+		game.removed.push(VULCAN);
+	}
+
+	if (game.removed.length === 0)
+		delete game.removed;
+
+	logbr();
+
 	// Option for backwards compatible replays.
-	if (options && options.automatic_disruption)
+	if (options.automatic_disruption)
 		game.automatic_disruption = 1;
 
 	setup_historical_deployment();
