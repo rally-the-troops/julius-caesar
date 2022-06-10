@@ -1828,13 +1828,13 @@ function start_battle_round() {
 				game.surprise = 0
 			if (count_defenders() === 0) {
 				log("Defending main force was eliminated.")
-				log("The attacker is now the defender.")
-				log("Reserves were disrupted.")
+				log("Defending reserves were disrupted.")
+				log("Battlefield control changed.")
 				game.attacker[game.where] = enemy(game.attacker[game.where])
 				return goto_disrupt_reserves()
 			} else if (count_attackers() === 0) {
 				log("Attacking main force was eliminated.")
-				log("Reserves were disrupted.")
+				log("Attacking reserves were disrupted.")
 				return goto_disrupt_reserves()
 			}
 			bring_on_reserves()
